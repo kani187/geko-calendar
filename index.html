@@ -15,17 +15,18 @@
 <style>
   :root {
     --bg: #f6f7f9; --card: #ffffff; --text: #1d2330; --muted: #5d6675; --line: #dfe3ea;
-    --accent: #2f6fb0; --accent-text: #ffffff; --ok: #1f7a45; --ok-bg: #e5f4ea;
+    --accent: #2f6fb0; --accent-text: #ffffff; --accent-soft: #e8f0fa; --ok: #1f7a45; --ok-bg: #e5f4ea;
     --warn: #8a5300; --warn-bg: #fff1d6; --err: #a3262a; --err-bg: #fde8e8;
   }
   @media (prefers-color-scheme: dark) {
     :root {
       --bg: #14171c; --card: #1e232b; --text: #e8ebf0; --muted: #a3acba; --line: #333a45;
-      --accent: #6aa5e6; --accent-text: #0e1116; --ok: #7ed3a0; --ok-bg: #1b3326;
+      --accent: #6aa5e6; --accent-text: #0e1116; --accent-soft: #1d2b3d; --ok: #7ed3a0; --ok-bg: #1b3326;
       --warn: #f3c170; --warn-bg: #3a2c12; --err: #f39a9a; --err-bg: #3d1c1d;
     }
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   body {
     margin: 0; background: var(--bg); color: var(--text);
     font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", Meiryo, sans-serif;
@@ -33,53 +34,75 @@
   }
   main { max-width: 720px; margin: 0 auto; padding: 16px 16px calc(40px + env(safe-area-inset-bottom)); }
   h1 { font-size: 1.35rem; margin: 8px 0 4px; }
-  h2 { font-size: 1.1rem; margin: 0 0 8px; }
+  h2 { font-size: 1.1rem; margin: 0 0 8px; display: flex; align-items: center; gap: 8px; }
   h3 { font-size: 1rem; margin: 0 0 6px; }
   p { margin: 6px 0; }
-  .lead { color: var(--muted); font-size: .92rem; margin-bottom: 16px; }
+  .lead { color: var(--muted); font-size: .92rem; margin: 0 0 12px; }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin: 0 0 14px; }
-  .step { display: inline-block; min-width: 1.6em; height: 1.6em; line-height: 1.6em; text-align: center; border-radius: 50%;
-          background: var(--accent); color: var(--accent-text); font-size: .85rem; margin-right: 6px; }
+  .card.locked { opacity: .55; }
+  .card.current { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+  .step { display: inline-flex; align-items: center; justify-content: center; width: 1.7em; height: 1.7em; flex: none;
+          border-radius: 50%; background: var(--accent); color: var(--accent-text); font-size: .85rem; }
+  .step.done { background: var(--ok); }
+  .flow { display: flex; gap: 6px; margin: 0 0 14px; font-size: .85rem; }
+  .flow span { flex: 1; text-align: center; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 6px 2px; }
+  .flow span.on { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .flow span.done { color: var(--ok); }
   .grades { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
   .grades label { display: flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--line);
-                  border-radius: 10px; padding: 10px 4px; cursor: pointer; user-select: none; }
-  .grades input { width: 20px; height: 20px; }
-  .grades label.on { border-color: var(--accent); outline: 2px solid var(--accent); outline-offset: -2px; }
+                  border-radius: 10px; padding: 12px 4px; cursor: pointer; user-select: none; font-size: 1.05rem; }
+  .grades input { width: 22px; height: 22px; }
+  .grades label.on { border-color: var(--accent); background: var(--accent-soft); font-weight: 600; }
   button, .btn { font: inherit; border: 1px solid var(--accent); background: var(--card); color: var(--accent);
-                 border-radius: 10px; padding: 10px 14px; cursor: pointer; text-decoration: none; display: inline-block; }
+                 border-radius: 10px; padding: 10px 14px; cursor: pointer; text-decoration: none; display: inline-block; text-align: center; }
   button.primary, .btn.primary { background: var(--accent); color: var(--accent-text); }
-  button:disabled { opacity: .45; cursor: default; }
+  .big { display: block; width: 100%; padding: 14px; font-size: 1.05rem; font-weight: 600; }
+  button:disabled, .btn.disabled { opacity: .45; cursor: default; pointer-events: none; }
   .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-  .file { display: block; border: 2px dashed var(--line); border-radius: 12px; padding: 18px; text-align: center; cursor: pointer; }
-  .file input { display: block; margin: 10px auto 0; max-width: 100%; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
   .muted { color: var(--muted); font-size: .88rem; }
   progress { width: 100%; height: 14px; }
-  .log { font-size: .8rem; color: var(--muted); max-height: 7.5em; overflow: auto; white-space: pre-wrap; margin-top: 6px; }
-  select, input[type=number], textarea { font: inherit; color: var(--text); background: var(--card); border: 1px solid var(--line);
-                                        border-radius: 8px; padding: 6px 8px; }
+  .log { font-size: .8rem; color: var(--muted); max-height: 6em; overflow: auto; white-space: pre-wrap; margin-top: 6px; }
+  select, textarea { font: inherit; color: var(--text); background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
   textarea { width: 100%; min-height: 8em; }
-  .note { border-radius: 8px; padding: 8px 10px; margin: 8px 0; font-size: .9rem; }
+  .note { border-radius: 8px; padding: 10px 12px; margin: 8px 0; font-size: .92rem; }
   .note.warn { background: var(--warn-bg); color: var(--warn); }
   .note.err { background: var(--err-bg); color: var(--err); }
   .note.ok { background: var(--ok-bg); color: var(--ok); }
+  .note.info { background: var(--accent-soft); color: var(--text); }
+  .summary { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0 10px; }
+  .summary div { border-radius: 10px; padding: 8px; text-align: center; }
+  .summary b { display: block; font-size: 1.4rem; }
   .day { border-top: 1px solid var(--line); padding: 10px 0 6px; }
   .day:first-of-type { border-top: 0; }
   .day-head { font-weight: 600; }
   .ev { font-size: .8rem; color: var(--muted); white-space: pre-wrap; word-break: break-all; margin: 2px 0 4px; }
   .cand { display: flex; align-items: flex-start; gap: 10px; padding: 6px 0; }
-  .cand input { width: 22px; height: 22px; margin-top: 2px; flex: none; }
+  .cand input { width: 24px; height: 24px; margin-top: 1px; flex: none; }
   .cand .title { font-weight: 600; }
   .badge { display: inline-block; border-radius: 6px; padding: 0 6px; font-size: .78rem; margin-left: 4px; }
   .badge.ok { background: var(--ok-bg); color: var(--ok); }
   .badge.warn { background: var(--warn-bg); color: var(--warn); }
-  .nobox { width: 22px; flex: none; }
-  #outWays { display: flex; flex-direction: column; gap: 18px; }
-  #outWays.android #androidBox { order: -1; }
-  ol.steps { padding-left: 1.4em; margin: 8px 0; }
-  ol.steps li { margin: 0 0 10px; }
+  .hint { display: block; font-size: .8rem; color: var(--warn); }
+  .nobox { width: 24px; flex: none; }
   .glinks a { display: block; padding: 8px 0; border-bottom: 1px solid var(--line); color: var(--accent); }
-  details > summary { cursor: pointer; color: var(--accent); }
-  .sticky { position: sticky; bottom: 0; background: var(--card); border-top: 1px solid var(--line); padding: 10px 0 0; }
+  details { margin-top: 10px; }
+  details > summary { cursor: pointer; color: var(--accent); padding: 4px 0; }
+  .guide { list-style: none; padding: 0; margin: 10px 0; counter-reset: g; }
+  .guide > li { position: relative; padding: 0 0 14px 40px; counter-increment: g; }
+  .guide > li::before { content: counter(g); position: absolute; left: 0; top: 0; width: 28px; height: 28px; border-radius: 50%;
+                        background: var(--line); color: var(--text); text-align: center; line-height: 28px; font-size: .9rem; }
+  .guide > li.done::before { content: "✓"; background: var(--ok); color: #fff; }
+  .guide > li.now::before { background: var(--accent); color: var(--accent-text); }
+  .guide > li.later { opacity: .5; }
+  .dest { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin: 0 0 8px; cursor: pointer; }
+  .dest input { width: 22px; height: 22px; margin-top: 2px; flex: none; }
+  .dest b { display: block; }
+  .dest:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+  .faq details { border-top: 1px solid var(--line); margin: 0; padding: 6px 0; }
+  .banner { display: flex; gap: 10px; align-items: center; background: var(--accent-soft); border-radius: 10px; padding: 10px 12px; margin: 0 0 14px; font-size: .9rem; }
+  .banner img { width: 36px; height: 36px; border-radius: 8px; flex: none; }
+  .banner .x { margin-left: auto; border: 0; background: none; color: var(--muted); padding: 4px 8px; font-size: 1.1rem; }
   a { color: var(--accent); }
 </style>
 <!-- 共通ロジック（外部通信なし） -->
@@ -90,101 +113,182 @@
 <body>
 <main>
   <h1>下校時刻カレンダー</h1>
-  <p class="lead">学校の「行事予定表」PDFから下校時刻を読み取り、カレンダーに入れます。PDFは<strong>この端末の中だけ</strong>で読み取り、どこにも送信しません。</p>
+  <p class="lead">学校の「行事予定表」PDFから下校時刻を読み取って、スマホのカレンダーに入れます。PDFは<strong>この端末の中だけ</strong>で読み取り、どこにも送りません。無料です。</p>
 
-  <section class="card">
-    <h2><span class="step">1</span>学年を選ぶ</h2>
+  <div class="banner" id="installBanner" hidden>
+    <img src="icons/icon-192.png" alt="">
+    <div id="installText"></div>
+    <button class="x" id="installClose" aria-label="閉じる">×</button>
+  </div>
+
+  <div class="flow" aria-hidden="true">
+    <span id="flow1">① 学年</span><span id="flow2">② PDF</span><span id="flow3">③ 確認</span><span id="flow4">④ 登録</span>
+  </div>
+
+  <!-- 1. 学年 -->
+  <section class="card" id="card1">
+    <h2><span class="step" id="step1">1</span>お子さんの学年を選ぶ</h2>
     <div class="grades" id="grades"></div>
-    <p class="muted">選んだ学年はこの端末に保存されます。</p>
+    <p class="muted" id="gradeNote">複数選べます。選んだ学年は次回も残ります。</p>
   </section>
 
-  <section class="card">
-    <h2><span class="step">2</span>PDFを選ぶ</h2>
-    <label class="file">
-      行事予定表のPDFを選んでください（複数可）
-      <input type="file" id="pdfInput" accept="application/pdf,.pdf" multiple>
-    </label>
-    <p class="muted">初回は文字認識のデータ（数MB）をダウンロードします。1枚の読み取りに数十秒かかることがあります。</p>
+  <!-- 2. PDF -->
+  <section class="card" id="card2">
+    <h2><span class="step" id="step2">2</span>行事予定表のPDFを選ぶ</h2>
+    <p class="muted" id="pdfLead">学校から届いた「行事予定表」のPDFを選んでください。</p>
+    <label class="btn primary big" id="pdfLabel" for="pdfInput">PDFを選ぶ</label>
+    <input class="sr" type="file" id="pdfInput" accept="application/pdf,.pdf" multiple>
+    <p class="muted" id="pdfWhere"></p>
     <div id="progressBox" hidden>
-      <p id="progressText">準備中…</p>
+      <p id="progressText" style="font-weight:600">準備中…</p>
       <progress id="progressBar" max="1" value="0"></progress>
+      <p class="muted" id="progressHint">初回は読み取りの準備（データのダウンロード）に時間がかかります。画面を閉じずにお待ちください。</p>
       <div class="log" id="log"></div>
     </div>
-    <details style="margin-top:10px">
-      <summary>PDFが読めないとき：文字を貼り付けて読む</summary>
-      <p class="muted">「6 火 1・2年15:00 3~6年16:00」のように、日付と下校時刻を1日1行で貼り付けてください。</p>
-      <div class="row" style="margin-bottom:8px">
-        <span id="pasteYm"></span>
-      </div>
+    <details id="pasteBox">
+      <summary>PDFが読み取れなかったとき（文字を貼り付けて読む）</summary>
+      <p class="muted">PDFの文字をコピーして貼り付けても読めます。「6 火 1・2年15:00 3~6年16:00」のように、1日1行で貼り付けてください。</p>
+      <div class="row" style="margin-bottom:8px"><span>何年度の何月の予定か：</span><span id="pasteYm"></span></div>
       <textarea id="pasteText" placeholder="5 月 1年14:10 2~6年15:00&#10;6 火 1・2年15:00 3~6年16:00"></textarea>
       <div class="row" style="margin-top:8px"><button id="pasteBtn">貼り付けた文字を読む</button></div>
     </details>
   </section>
 
-  <section class="card" id="resultCard" hidden>
-    <h2><span class="step">3</span>内容を確認して選ぶ</h2>
-    <p class="muted">カレンダーに入れる予定にチェックを付けてください。「要確認」は読み取りに不安がある予定です。PDFと見比べて正しいときだけ選んでください。</p>
-    <div class="row" style="margin-bottom:8px">
-      <button id="selectAllOk">登録可をすべて選択</button>
-      <button id="clearSel">選択を解除</button>
-    </div>
+  <!-- 3. 確認 -->
+  <section class="card" id="card3" hidden>
+    <h2><span class="step" id="step3">3</span>読み取り結果を確認する</h2>
+    <div class="summary" id="summary"></div>
+    <button class="primary big" id="selectAllOk">「登録可」をすべて選ぶ</button>
+    <p class="muted" style="margin-top:8px">チェックを付けた予定だけがカレンダーに入ります。念のため、日付と時刻をPDFと見比べてください。</p>
+    <details>
+      <summary>「要確認」とは？</summary>
+      <p class="muted">学級ごとに時刻が違う日や、文字がはっきり読めなかった日です。間違った時刻が入らないよう、自動では選びません。PDFと見比べて正しいときだけ、自分でチェックを付けてください。時刻が出ていない「要確認」は、カレンダーに入れられません（手で予定を作ってください）。</p>
+    </details>
     <div id="docs"></div>
+    <div class="row" style="margin-top:8px"><button id="clearSel">チェックをすべて外す</button></div>
   </section>
 
-  <section class="card" id="outCard" hidden>
-    <h2><span class="step">4</span>カレンダーに入れる</h2>
-    <p id="selCount"></p>
-    <div class="row" style="margin-bottom:10px">
-      <label>通知：
+  <!-- 4. 登録 -->
+  <section class="card" id="card4" hidden>
+    <h2><span class="step" id="step4">4</span>カレンダーに入れる</h2>
+    <p id="selCount" style="font-weight:600"></p>
+    <div class="row" style="margin-bottom:6px">
+      <label>お知らせ（通知）：
         <select id="alarm">
           <option value="0">なし</option>
-          <option value="10">10分前</option>
-          <option value="30">30分前</option>
-          <option value="60">1時間前</option>
+          <option value="10">下校の10分前</option>
+          <option value="30">下校の30分前</option>
+          <option value="60">下校の1時間前</option>
         </select>
       </label>
     </div>
-    <div id="outWays">
-      <div id="iosBox">
-        <h3>iPhone・パソコン</h3>
-        <div class="row">
-          <button class="primary" id="icsBtn">カレンダーファイル（.ics）を保存</button>
-          <button id="shareBtn" hidden>共有メニューで開く</button>
-        </div>
-        <p class="muted">iPhoneでは保存後に表示される「すべてを追加」でカレンダーに入ります。</p>
-      </div>
-      <div id="androidBox">
-        <h3>Android（Pixelなど・Googleカレンダー）</h3>
-        <p class="muted">選んだ予定を<strong>まとめて</strong>Googleカレンダーに入れます（スマホのGoogleカレンダーアプリには取り込み機能がないため、Chromeで取り込み画面を開きます）。</p>
-        <ol class="steps">
-          <li><button class="primary" id="icsBtn2">予定ファイル（.ics）を保存</button>
-            <div class="muted" id="icsSaved"></div></li>
-          <li><a class="btn" id="gImport" href="https://calendar.google.com/calendar/r/settings/export" target="_blank" rel="noopener">Googleカレンダーの取り込み画面を開く</a></li>
-          <li>画面が小さく崩れているときは、Chrome右上の「︙」→「<strong>PC版サイト</strong>」にチェック</li>
-          <li>「<strong>パソコンからファイルを選択</strong>」→「ダウンロード」にある手順1のファイルを選ぶ</li>
-          <li>追加先のカレンダーを確かめて「<strong>インポート</strong>」</li>
-        </ol>
-        <p class="muted">同じファイルを2回取り込むと予定が二重になることがあります。1か月分につき1回だけ取り込んでください。</p>
-        <details>
-          <summary>1件ずつ追加する</summary>
-          <p class="muted">リンクを開いて「保存」を押します。このときだけ予定の題名と日時がGoogleに送られます。</p>
-          <div class="glinks" id="glinks"></div>
-        </details>
-      </div>
+
+    <!-- 入れ先の選択（iPhone・パソコン。AndroidはGoogleカレンダーのみ） -->
+    <div id="destBox" hidden>
+      <p style="font-weight:600;margin:10px 0 6px">どのカレンダーに入れますか？</p>
+      <label class="dest"><input type="radio" name="dest" value="device">
+        <span><b id="destDeviceName">iPhoneのカレンダー</b><span class="muted" id="destDeviceDesc"></span></span></label>
+      <label class="dest"><input type="radio" name="dest" value="google">
+        <span><b>Googleカレンダー</b><span class="muted">家族とGoogleカレンダーを共有している場合など</span></span></label>
+      <p class="muted" id="destNeed">上のどちらかを選ぶと、入れ方が表示されます。</p>
     </div>
+
+    <!-- iPhoneのカレンダー -->
+    <div id="wayIos" hidden>
+      <ol class="guide">
+        <li id="iosS1" class="now">
+          <button class="primary big" id="icsBtnIos">iPhoneのカレンダーに追加</button>
+        </li>
+        <li id="iosS2" class="later">
+          表示された画面で「<strong>すべてを追加</strong>」を押すと完了です。
+          <span class="muted" style="display:block">画面が出ないときは <button id="shareBtn" style="padding:4px 10px">共有メニューで開く</button> を押し、「カレンダー」を選んでください。</span>
+        </li>
+      </ol>
+      <div class="note info">予定は<strong>iPhoneのカレンダー</strong>に入ります。家族と共有しているGoogleカレンダーには入りません。
+        <button class="toGoogle" style="margin-top:6px">Googleカレンダーにも入れる</button></div>
+    </div>
+
+    <!-- パソコンのカレンダー -->
+    <div id="wayPc" hidden>
+      <ol class="guide">
+        <li class="now"><button class="primary big" id="icsBtnPc">予定のファイル（.ics）を保存</button></li>
+        <li>保存したファイルを開くと、Outlook や Mac のカレンダーに追加できます。</li>
+      </ol>
+      <div class="note info">家族と共有しているGoogleカレンダーには入りません。
+        <button class="toGoogle" style="margin-top:6px">Googleカレンダーにも入れる</button></div>
+    </div>
+
+    <!-- Googleカレンダー（全端末共通） -->
+    <div id="wayGoogle" hidden>
+      <p class="muted">Googleカレンダーに、選んだ予定をまとめて入れます。下の順に進めてください。</p>
+      <ol class="guide">
+        <li id="gS1" class="now">
+          <button class="primary big" id="icsBtnGoogle">予定のファイルを保存</button>
+          <span class="muted" id="gSaved"></span>
+          <span class="muted" id="gSaveAlt" hidden style="display:block">保存できないときは <button id="gShare" style="padding:4px 10px">共有メニュー</button> →「"ファイル"に保存」を選んでください。</span>
+        </li>
+        <li id="gS2" class="later">
+          <a class="btn primary big disabled" id="gImport" href="https://calendar.google.com/calendar/r/settings/export" target="_blank" rel="noopener">Googleカレンダーを開く</a>
+          <span class="muted" id="gOpenText"></span>
+        </li>
+        <li id="gS3" class="later">
+          開いた画面で「<strong>パソコンからファイルを選択</strong>」を押し、<span id="gWhere"></span>「<strong id="gFile">geko_….ics</strong>」を選びます。
+          <details>
+            <summary>「パソコンからファイルを選択」が見つからないとき</summary>
+            <p class="muted" id="gHow"></p>
+          </details>
+        </li>
+        <li id="gS4" class="later">
+          「カレンダーに追加」の欄で、<strong>入れたいカレンダー</strong>（家族と共有しているカレンダーなど）を選び、「<strong>インポート</strong>」を押すと完了です。
+          <span class="muted" style="display:block">同じファイルを2回取り込むと予定が二重になります。1か月分につき1回だけにしてください。</span>
+        </li>
+      </ol>
+      <p class="muted" id="backToDevice" hidden><button id="toDevice" style="padding:4px 10px"></button></p>
+    </div>
+
+    <details>
+      <summary>ほかの方法で入れる</summary>
+      <p class="muted" style="margin-top:6px">予定のファイル（.ics）は、iPhone・Outlook・Googleカレンダーなど多くのカレンダーで使えます。</p>
+      <button id="icsBtnAny">予定のファイル（.ics）を保存</button>
+      <p class="muted" style="margin-top:10px">Googleカレンダーに1件ずつ入れる場合は、下のリンクを開いて「保存」を押します（このとき予定の題名と日時がGoogleに送られます）。</p>
+      <div class="glinks" id="glinks"></div>
+    </details>
   </section>
 
-  <p class="muted">このアプリは無料です。読み取り結果は必ずPDFと見比べてください。</p>
+  <section class="card faq">
+    <h2>困ったとき</h2>
+    <details><summary>読み取りに時間がかかる・途中で止まる</summary>
+      <p class="muted">1枚で数十秒かかることがあります。初回は準備のデータ（数MB）をダウンロードするので、Wi-Fiでの利用がおすすめです。止まったように見えるときは、ページを開き直してもう一度PDFを選んでください。</p></details>
+    <details><summary>「表が見つかりませんでした」と出る</summary>
+      <p class="muted">行事予定表（表の形のPDF）以外は読めません。写真やスクリーンショットではなく、学校から届いたPDFを選んでください。読めないときは、手順2の「文字を貼り付けて読む」も使えます。</p></details>
+    <details><summary>月や年度が違う</summary>
+      <p class="muted">手順3の結果の上にある「年度」「月」を選び直すと、日付が直ります。</p></details>
+    <details><summary>家族と共有しているカレンダーに入れたい</summary>
+      <p class="muted">手順4で「Googleカレンダー」を選び、最後の「カレンダーに追加」の欄で家族と共有しているカレンダーを選んでください。iPhoneのカレンダーに入れただけでは、家族のGoogleカレンダーには入りません。</p></details>
+    <details><summary>間違った予定を入れてしまった</summary>
+      <p class="muted">カレンダーアプリで、その予定を開いて削除してください。予定の名前は「下校 14:30（3年）」のようになっています。</p></details>
+    <details><summary>次の月はどうする？</summary>
+      <p class="muted">新しい行事予定表が届いたら、このページを開いてPDFを選ぶだけです。学年と通知の設定は残っています。</p></details>
+    <details><summary>個人情報や費用は？</summary>
+      <p class="muted">PDFはこの端末の中で読み取り、どこにも送りません。料金はかかりません（初回のデータ取得で通信量だけ使います）。</p></details>
+  </section>
 </main>
 
 <script type="module">
 const C = window.GekoCore;
 const PDFJS = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.7.284/legacy/build/';
 const PDFJS_ROOT = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.7.284/';
+const GCAL_IMPORT = 'https://calendar.google.com/calendar/r/settings/export';
 // テスト（test/test_pdf.mjs）と同じ条件で読む
 const SCALES = [3, 4];
 const MAX_PIXELS = 12e6;          // スマホのキャンバス上限に余裕を持たせる
 const OCR_PER_SCALE = 4;          // 見出し1回＋下校時刻2回＋日付1回
+
+// ---------- 端末の種類 ----------
+const UA = navigator.userAgent;
+const isIOS = /iPhone|iPad|iPod/.test(UA) || (/Macintosh/.test(UA) && navigator.maxTouchPoints > 1);
+const isAndroid = /Android/i.test(UA);
+const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 
 // ---------- 端末への保存（読めない環境でも動くように） ----------
 const store = {
@@ -208,6 +312,57 @@ let grades = store.get('geko.grades', []);
 const docs = [];                  // 読み取った表（PDFのページ、または貼り付け）
 const selected = new Set();       // 選んだ候補のキー
 let current = [];                 // 画面に出ている候補 [{key, c}]
+let busy = false;
+const savedSig = { ios: null, google: null };  // 保存したときの選択内容（選択が変わったら保存し直してもらう）
+
+// ---------- 画面全体の進み具合 ----------
+function updateFlow() {
+  const hasGrades = grades.length > 0;
+  const hasDocs = docs.length > 0;
+  const hasSel = selected.size > 0;
+  const stage = !hasGrades ? 1 : !hasDocs ? 2 : !hasSel ? 3 : 4;
+  [1, 2, 3, 4].forEach((n) => {
+    $('flow' + n).className = n < stage ? 'done' : n === stage ? 'on' : '';
+    $('card' + n).classList.toggle('current', n === stage);
+  });
+  $('step1').classList.toggle('done', hasGrades);
+  $('step2').classList.toggle('done', hasDocs);
+  $('step3').classList.toggle('done', hasSel);
+  // 学年を選ぶまでPDFは選べない
+  $('card2').classList.toggle('locked', !hasGrades);
+  $('pdfInput').disabled = !hasGrades || busy;
+  $('pdfLabel').classList.toggle('disabled', !hasGrades || busy);
+  $('pdfLabel').textContent = busy ? '読み取り中…' : (hasDocs ? '別のPDFを追加で選ぶ' : 'PDFを選ぶ');
+  $('pdfLead').textContent = hasGrades
+    ? '学校から届いた「行事予定表」のPDFを選んでください。'
+    : '先に、上で学年を選んでください。';
+  $('gradeNote').textContent = hasGrades
+    ? '選択中：' + grades.join('・') + '年（次回も残ります）'
+    : '複数選べます。選んだ学年は次回も残ります。';
+  $('card3').hidden = !hasDocs;
+  $('card4').hidden = !hasDocs;
+}
+
+$('pdfWhere').textContent = isIOS
+  ? 'メールやLINEで届いたPDFは、先に「ファイル」アプリに保存しておくと選べます。'
+  : isAndroid ? 'ダウンロードしたPDFは「ダウンロード」フォルダにあります。' : '';
+
+// ---------- ホーム画面への追加の案内 ----------
+let installEvent = null;
+function showInstall(html) {
+  if (isStandalone || store.get('geko.installClosed', false)) return;
+  $('installText').innerHTML = html;
+  $('installBanner').hidden = false;
+}
+$('installClose').addEventListener('click', () => { $('installBanner').hidden = true; store.set('geko.installClosed', true); });
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault(); installEvent = e;
+  showInstall('ホーム画面に追加すると、次からすぐ開けます。 <button id="installBtn" style="padding:4px 10px">追加する</button>');
+  $('installBtn').addEventListener('click', async () => {
+    installEvent.prompt(); await installEvent.userChoice; $('installBanner').hidden = true;
+  });
+});
+if (isIOS) showInstall('Safariの<strong>共有ボタン</strong>（□に↑）→「<strong>ホーム画面に追加</strong>」で、次からすぐ開けます。');
 
 // ---------- 1. 学年 ----------
 function renderGrades() {
@@ -220,6 +375,7 @@ function renderGrades() {
     } });
     box.append(el('label', { class: on ? 'on' : '' }, cb, g + '年'));
   }
+  updateFlow();
 }
 
 // ---------- 年度・月の選択欄 ----------
@@ -227,7 +383,7 @@ function fiscalYearNow() { const d = new Date(); return d.getMonth() + 1 >= 4 ? 
 function ymSelectors(fy, month, onChange) {
   const base = fiscalYearNow();
   const fySel = el('select', { 'aria-label': '年度' });
-  for (let y = base - 2; y <= base + 2; y += 1) fySel.append(el('option', { value: y, selected: y === fy }, '令和' + (y - 2018) + '年度（' + y + '）'));
+  for (let y = base - 2; y <= base + 2; y += 1) fySel.append(el('option', { value: y, selected: y === fy }, '令和' + (y - 2018) + '年度'));
   const mSel = el('select', { 'aria-label': '月' });
   mSel.append(el('option', { value: '', selected: !month }, '月を選ぶ'));
   [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3].forEach((m) => mSel.append(el('option', { value: m, selected: m === month }, m + '月')));
@@ -239,7 +395,7 @@ function ymSelectors(fy, month, onChange) {
 // ---------- 進捗表示 ----------
 const progress = {
   total: 1, done: 0, frac: 0,
-  start(text) { $('progressBox').hidden = false; $('log').textContent = ''; this.text(text); this.set(0, 1); },
+  start(text) { $('progressBox').hidden = false; $('log').textContent = ''; $('progressHint').hidden = false; this.text(text); this.set(0, 1); },
   text(t) { $('progressText').textContent = t; },
   set(done, total) { this.done = done; this.total = total; this.frac = 0; this.draw(); },
   draw() { $('progressBar').value = Math.min(1, (this.done + this.frac) / Math.max(1, this.total)); },
@@ -258,8 +414,8 @@ async function loadPdfjs() {
 let workerPromise = null;
 function getWorker() {
   if (!workerPromise) {
-    if (!window.Tesseract) throw new Error('文字認識の部品を読み込めませんでした。通信状態を確認して、ページを開き直してください。');
-    progress.log('文字認識の準備中（初回はデータをダウンロードします）');
+    if (!window.Tesseract) throw new Error('読み取りの部品を読み込めませんでした。インターネットにつながっているか確認して、ページを開き直してください。');
+    progress.log('読み取りの準備中（初回はデータをダウンロードします）');
     workerPromise = window.Tesseract.createWorker('jpn', 1, {
       workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/worker.min.js',
       corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@7.0.0',
@@ -338,7 +494,7 @@ async function readPdfPage(page, label) {
   const tables = [];
   progress.set(0, SCALES.length * OCR_PER_SCALE);
   for (let i = 0; i < SCALES.length; i += 1) {
-    progress.text(label + '：読み取り中（' + (i + 1) + '/' + SCALES.length + '回目）');
+    progress.text('読み取り中…（' + (i + 1) + '/' + SCALES.length + '）');
     const r = await renderPage(page, SCALES[i]);
     if (r.scale < SCALES[i]) progress.log('ページが大きいため解像度を下げました');
     const t = await C.readTablePage(r.img, ocr, (s) => progress.log(label + ': ' + s));
@@ -353,8 +509,9 @@ async function readPdfPage(page, label) {
 let docSeq = 0;
 async function handleFiles(files) {
   if (!files.length) return;
-  const input = $('pdfInput'); input.disabled = true; $('pasteBtn').disabled = true;
-  progress.start('PDFを読み込んでいます…');
+  busy = true; updateFlow(); $('pasteBtn').disabled = true;
+  progress.start('PDFを開いています…');
+  const before = docs.length;
   try {
     await loadPdfjs();
     for (const file of files) {
@@ -368,7 +525,7 @@ async function handleFiles(files) {
           standardFontDataUrl: PDFJS_ROOT + 'standard_fonts/', wasmUrl: PDFJS_ROOT + 'wasm/', verbosity: 0
         }).promise;
       } catch (e) {
-        addDoc({ kind: 'error', label: file.name, message: 'PDFを開けませんでした（' + (e.name === 'PasswordException' ? 'パスワード付き' : e.message) + '）' });
+        addDoc({ kind: 'error', label: file.name, message: 'このファイルを開けませんでした（' + (e.name === 'PasswordException' ? 'パスワード付きのPDFです' : 'PDFではないか、壊れている可能性があります') + '）。' });
         continue;
       }
       const pages = Math.min(pdf.numPages, 4);
@@ -378,7 +535,7 @@ async function handleFiles(files) {
         const read = await readPdfPage(page, label);
         page.cleanup();
         if (!read) {
-          addDoc({ kind: 'error', label, message: '表が見つかりませんでした。PDFが行事予定表か確認するか、下の「文字を貼り付けて読む」を使ってください。' });
+          addDoc({ kind: 'error', label, message: '表が見つかりませんでした。行事予定表のPDFか確認してください。読めないときは、上の「文字を貼り付けて読む」も使えます。' });
           continue;
         }
         const table = read.table;
@@ -391,13 +548,15 @@ async function handleFiles(files) {
       }
       await pdf.destroy();
     }
-    progress.text('読み取りが終わりました');
+    progress.text('読み取りが終わりました。下の「3」で結果を確認してください。');
+    $('progressHint').hidden = true;
     $('progressBar').value = 1;
+    if (docs.length > before) $('card3').scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (e) {
     console.error(e);
-    progress.text('エラー：' + (e && e.message ? e.message : e));
+    progress.text('うまく読み取れませんでした：' + (e && e.message ? e.message : e));
   } finally {
-    input.disabled = false; input.value = ''; $('pasteBtn').disabled = false;
+    busy = false; $('pdfInput').value = ''; $('pasteBtn').disabled = false; updateFlow();
   }
 }
 
@@ -405,16 +564,16 @@ function addDoc(d) { d.key = 'd' + (docSeq += 1); docs.push(d); renderDocs(); }
 
 // ---------- 3. 候補の作成と表示 ----------
 function computeDoc(d) {
-  if (!d.month) return { cands: [], warnings: ['年度と月を選んでください（見出しから読み取れませんでした）。'] };
+  if (!d.month) return { cands: [], warnings: ['この予定表が何月のものか読み取れませんでした。上で年度と月を選んでください。'] };
   if (d.kind === 'paste') {
     const per = C.splitPastedText(d.text, d.month);
     const year = C.calendarYear(d.fy, d.month);
-    const warnings = per.length ? [] : ['日付で始まる行が見つかりませんでした。'];
+    const warnings = per.length ? [] : ['日付で始まる行が見つかりませんでした。「6 火 1・2年15:00」のように1日1行で貼り付けてください。'];
     return { cands: grades.length ? C.makeCandidates(per, grades, year, d.month, 'paste') : [], warnings };
   }
   const built = C.buildFromTable(d.table, { fiscalYear: d.fy, month: d.month });
   const warnings = built.warnings.slice();
-  if (!d.detected.fiscalYear || !d.detected.month) warnings.unshift('見出しから年度・月を読み取れませんでした。正しい年度と月を選んでください。');
+  if (!d.detected.fiscalYear || !d.detected.month) warnings.unshift('PDFの見出しから年度・月を読み取れませんでした。正しい年度と月を選んでください。');
   return { cands: grades.length ? C.makeCandidates(built.perDay, grades, built.year, built.month, 'pdf') : [], warnings };
 }
 
@@ -428,54 +587,66 @@ function renderDocs() {
   const box = $('docs'); box.textContent = '';
   current = [];
   docs.forEach((d) => {
-    const card = el('div', { class: 'card', style: 'padding:12px' });
+    const card = el('div', { class: 'card', style: 'padding:12px;margin-top:12px' });
     const remove = el('button', { style: 'padding:4px 10px;font-size:.85rem', onclick: () => {
       docs.splice(docs.indexOf(d), 1); renderDocs();
-    } }, '一覧から外す');
-    card.append(el('div', { class: 'row', style: 'justify-content:space-between' }, el('h3', {}, d.kind === 'paste' ? '貼り付けた文字' : d.label), remove));
+    } }, '取り消す');
+    card.append(el('div', { class: 'row', style: 'justify-content:space-between' }, el('h3', { style: 'word-break:break-all' }, d.kind === 'paste' ? '貼り付けた文字' : d.label), remove));
     if (d.kind === 'error') { card.append(el('div', { class: 'note err' }, d.message)); box.append(card); return; }
 
     const meta = el('div', { class: 'row muted' });
     meta.append(ymSelectors(d.fy, d.month, (fy, m) => { d.fy = fy; d.month = m; renderDocs(); }));
-    if (d.kind === 'pdf') {
-      meta.append(el('a', { href: d.url, target: '_blank', rel: 'noopener' }, 'PDFを開いて見比べる'));
-      meta.append(el('span', {}, (d.source === 'text' ? '文字データから読み取り' : '画像から読み取り') + '・' + d.seconds.toFixed(1) + '秒'));
-    }
+    if (d.kind === 'pdf') meta.append(el('a', { href: d.url, target: '_blank', rel: 'noopener' }, 'PDFを開いて見比べる'));
     card.append(meta);
 
     const { cands, warnings } = computeDoc(d);
     warnings.forEach((w) => card.append(el('div', { class: 'note warn' }, w)));
-    if (!grades.length) card.append(el('div', { class: 'note warn' }, '上で学年を選ぶと、下校時刻の候補が表示されます。'));
-    else if (d.month && !cands.length) card.append(el('p', { class: 'muted' }, '下校時刻は見つかりませんでした。'));
+    if (d.month && !cands.length) card.append(el('p', { class: 'muted' }, '選んだ学年の下校時刻は見つかりませんでした。'));
 
     // 日ごとにまとめて表示
     const byDate = new Map();
     cands.forEach((c) => { if (!byDate.has(c.date)) byDate.set(c.date, []); byDate.get(c.date).push(c); });
     byDate.forEach((list, date) => {
       const day = el('div', { class: 'day' }, el('div', { class: 'day-head' }, dateLabel(date)));
-      day.append(el('div', { class: 'ev' }, '読み取った文字：' + (list[0].evidence || '（なし）')));
+      day.append(el('div', { class: 'ev' }, 'PDFの記載：' + (list[0].evidence || '（なし）')));
       list.forEach((c) => {
         const key = d.key + ':' + c.id;
         const selectable = !!(c.date && c.time);
-        if (selectable) current.push({ key, c });
+        current.push({ key, c, selectable });
         const title = c.time ? C.eventTitle(c) : C.gradeLabel(c.grades);
         const badge = el('span', { class: 'badge ' + (c.eligible ? 'ok' : 'warn') }, c.status);
+        const hint = c.eligible ? null : el('span', { class: 'hint' }, selectable
+          ? 'PDFと見比べて、正しければチェックしてください'
+          : 'この日は自動で入れられません。必要ならカレンダーに手で入れてください');
         const box2 = selectable
           ? el('input', { type: 'checkbox', checked: selected.has(key), 'aria-label': title, onchange: (e) => {
-              if (e.target.checked) selected.add(key); else selected.delete(key); renderOutput();
+              if (e.target.checked) selected.add(key); else selected.delete(key); renderSummary(); renderOutput();
             } })
           : el('span', { class: 'nobox' });
-        day.append(el('label', { class: 'cand' }, box2, el('span', {}, el('span', { class: 'title' }, title), badge)));
+        day.append(el('label', { class: 'cand' }, box2, el('span', {}, el('span', { class: 'title' }, title), badge, hint)));
       });
       card.append(day);
     });
     box.append(card);
   });
   // 画面から消えた候補の選択は外す
-  const keys = new Set(current.map((x) => x.key));
+  const keys = new Set(current.filter((x) => x.selectable).map((x) => x.key));
   Array.from(selected).forEach((k) => { if (!keys.has(k)) selected.delete(k); });
-  $('resultCard').hidden = docs.length === 0;
+  renderSummary();
   renderOutput();
+}
+
+function renderSummary() {
+  const ok = current.filter((x) => x.c.eligible && x.selectable);
+  const warn = current.filter((x) => !x.c.eligible);
+  const s = $('summary'); s.textContent = '';
+  s.append(
+    el('div', { class: 'note ok', style: 'margin:0' }, el('b', {}, ok.length + '件'), '登録可'),
+    el('div', { class: 'note warn', style: 'margin:0' }, el('b', {}, warn.length + '件'), '要確認'));
+  const notSel = ok.filter((x) => !selected.has(x.key)).length;
+  $('selectAllOk').disabled = notSel === 0;
+  $('selectAllOk').textContent = notSel ? '「登録可」の ' + notSel + '件 をすべて選ぶ' : '「登録可」はすべて選びました';
+  updateFlow();
 }
 
 // ---------- 4. 出力 ----------
@@ -483,65 +654,132 @@ function selectedCands() {
   return current.filter((x) => selected.has(x.key)).map((x) => x.c)
     .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
 }
+function signature() { return Array.from(selected).sort().join('|') + '#' + $('alarm').value; }
+
+function setGuide(prefix, n, nowStep) {
+  for (let i = 1; i <= n; i += 1) {
+    const li = $(prefix + i);
+    if (li) li.className = i < nowStep ? 'done' : i === nowStep ? 'now' : 'later';
+  }
+}
 
 function renderOutput() {
   const list = selectedCands();
-  $('outCard').hidden = docs.length === 0;
+  const n = list.length;
   const warnSel = list.filter((c) => !c.eligible).length;
-  $('selCount').textContent = list.length
-    ? list.length + '件を選んでいます' + (warnSel ? '（うち要確認 ' + warnSel + '件）' : '')
-    : 'まだ予定を選んでいません。上の一覧でチェックを付けてください。';
-  $('icsBtn').disabled = !list.length;
-  $('icsBtn2').disabled = !list.length;
-  $('shareBtn').disabled = !list.length;
+  $('selCount').textContent = n
+    ? n + '件の予定を入れます' + (warnSel ? '（うち要確認 ' + warnSel + '件）' : '')
+    : '上の「3」で、入れる予定にチェックを付けてください。';
+  ['icsBtnIos', 'icsBtnGoogle', 'icsBtnPc', 'icsBtnAny', 'shareBtn', 'gShare'].forEach((id) => { $(id).disabled = !n; });
+  $('icsBtnIos').textContent = 'iPhoneのカレンダーに追加' + (n ? '（' + n + '件）' : '');
+  $('icsBtnGoogle').textContent = '予定のファイルを保存' + (n ? '（' + n + '件）' : '');
+  // 選び直したら、保存からやり直してもらう
+  const sig = signature();
+  if (savedSig.ios !== sig) setGuide('iosS', 2, 1);
+  if (savedSig.google !== sig) {
+    setGuide('gS', 4, 1);
+    $('gImport').classList.add('disabled'); $('gSaved').textContent = '';
+  }
   const g = $('glinks'); g.textContent = '';
   list.forEach((c) => g.append(el('a', { href: C.googleCalendarUrl(c), target: '_blank', rel: 'noopener' },
     dateLabel(c.date) + ' ' + C.eventTitle(c))));
+  updateFlow();
 }
 
-function icsFile() {
+// asFile：iPhoneでは .ics を開くとカレンダー追加画面になるため、Googleに取り込む用は「ファイル」として保存させる
+function icsFile(asFile) {
   const list = selectedCands();
   const alarm = Number($('alarm').value) || undefined;
   const text = C.buildIcs(list, { alarmMinutes: alarm });
   const first = list[0].date.replace(/-/g, '').slice(0, 6);
-  return new File([text], 'geko_' + first + '.ics', { type: 'text/calendar' });
+  return new File([text], 'geko_' + first + '.ics', { type: asFile && isIOS ? 'application/octet-stream' : 'text/calendar' });
 }
 
-function saveIcs() {
-  const f = icsFile();
+function saveIcs(asFile) {
+  const f = icsFile(asFile);
   const url = URL.createObjectURL(f);
   const a = el('a', { href: url, download: f.name });
   document.body.append(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 60000);
   return f;
 }
-$('icsBtn').addEventListener('click', saveIcs);
-$('icsBtn2').addEventListener('click', () => {
-  const f = saveIcs();
-  $('icsSaved').textContent = '「' + f.name + '」を保存しました（' + selectedCands().length + '件）。次へ進んでください。';
-});
 
-// Android：取り込み画面がGoogleカレンダーアプリ（取り込み機能なし）で開かないよう、Chromeで開く
-const isAndroid = /Android/i.test(navigator.userAgent);
-if (isAndroid) {
-  $('outWays').classList.add('android');
-  $('gImport').href = 'intent://calendar.google.com/calendar/r/settings/export#Intent;scheme=https;package=com.android.chrome;'
-    + 'S.browser_fallback_url=' + encodeURIComponent('https://calendar.google.com/calendar/r/settings/export') + ';end';
+// ---------- 入れ先（端末のカレンダー / Googleカレンダー） ----------
+// Androidの標準カレンダーはGoogleカレンダーなので選択なし。iPhone・パソコンは最初に選んでもらう（次回も残す）
+let dest = isAndroid ? 'google' : store.get('geko.dest', null);
+$('destDeviceName').textContent = isIOS ? 'iPhoneのカレンダー' : 'パソコンのカレンダー';
+$('destDeviceDesc').textContent = isIOS ? 'いつも使っている「カレンダー」アプリ' : 'Outlook・Macのカレンダーなど';
+document.querySelectorAll('input[name=dest]').forEach((r) => {
+  r.checked = r.value === dest;
+  r.addEventListener('change', () => setDest(r.value, false));
+});
+function setDest(v, scroll) {
+  dest = v; store.set('geko.dest', v);
+  document.querySelectorAll('input[name=dest]').forEach((r) => { r.checked = r.value === v; });
+  applyWays();
+  if (scroll) $('destBox').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
+function applyWays() {
+  $('destBox').hidden = isAndroid;
+  $('destNeed').hidden = !!dest;
+  $('wayIos').hidden = !(isIOS && dest === 'device');
+  $('wayPc').hidden = !(!isIOS && !isAndroid && dest === 'device');
+  $('wayGoogle').hidden = dest !== 'google';
+  $('backToDevice').hidden = isAndroid;
+  $('toDevice').textContent = (isIOS ? 'iPhone' : 'パソコン') + 'のカレンダーにも入れる';
+}
+document.querySelectorAll('.toGoogle').forEach((b) => b.addEventListener('click', () => setDest('google', true)));
+$('toDevice').addEventListener('click', () => setDest('device', true));
+
+// ブラウザごとの案内文
+$('gOpenText').textContent = isAndroid ? 'Chromeで「インポート」の画面が開きます。'
+  : isIOS ? 'Safariで「インポート」の画面が開きます。' : '新しいタブで「インポート」の画面が開きます。';
+$('gWhere').textContent = isIOS ? '「ファイル」の「ダウンロード」にある' : isAndroid ? '「ダウンロード」にある' : '';
+$('gHow').textContent = isAndroid
+  ? 'Chromeの右上「︙」を押し、「PC版サイト」にチェックを付けると表示されます。Googleへのログインを求められたら、いつものアカウントでログインしてください。'
+  : isIOS
+    ? 'アドレス欄の左の「ぁあ」（または「ページ設定」）を押し、「デスクトップ用Webサイトを表示」を選ぶと表示されます。Googleカレンダーのアプリが開いてしまったときは、Safariのアドレス欄に calendar.google.com と入力して開いてください。Googleへのログインを求められたら、いつものアカウントでログインしてください。'
+    : 'Googleへのログインを求められたら、いつものアカウントでログインしてください。左の「インポート」を選ぶと表示されます。';
+
+$('icsBtnIos').addEventListener('click', () => { saveIcs(false); savedSig.ios = signature(); setGuide('iosS', 2, 2); });
+$('icsBtnPc').addEventListener('click', () => saveIcs(false));
+$('icsBtnAny').addEventListener('click', () => saveIcs(false));
+function googleSaved(f) {
+  savedSig.google = signature();
+  $('gSaved').textContent = '「' + f.name + '」を保存しました。次へ進んでください。';
+  $('gFile').textContent = f.name;
+  $('gImport').classList.remove('disabled');
+  setGuide('gS', 4, 2);
+}
+$('icsBtnGoogle').addEventListener('click', () => {
+  googleSaved(saveIcs(true));
+  if (isIOS && canShareFiles) $('gSaveAlt').hidden = false;
+});
+// Android：取り込み画面がGoogleカレンダーアプリ（取り込み機能なし）で開かないよう、Chromeで開く
+if (isAndroid) {
+  $('gImport').href = 'intent://calendar.google.com/calendar/r/settings/export#Intent;scheme=https;package=com.android.chrome;'
+    + 'S.browser_fallback_url=' + encodeURIComponent(GCAL_IMPORT) + ';end';
+}
+$('gImport').addEventListener('click', () => setGuide('gS', 4, 3));
 
 // iPhoneのホーム画面から開いたときなど、保存がうまく動かない場合の予備
-if (navigator.canShare && navigator.canShare({ files: [new File(['x'], 'a.ics', { type: 'text/calendar' })] })) {
-  $('shareBtn').hidden = false;
-  $('shareBtn').addEventListener('click', async () => {
-    try { await navigator.share({ files: [icsFile()], title: '下校時刻' }); } catch (e) { /* キャンセル */ }
-  });
-}
+const canShareFiles = !!(navigator.canShare && navigator.canShare({ files: [new File(['x'], 'a.ics', { type: 'text/calendar' })] }));
+if (!canShareFiles) $('shareBtn').parentElement.hidden = true;
+$('shareBtn').addEventListener('click', async () => {
+  try { await navigator.share({ files: [icsFile(false)], title: '下校時刻' }); savedSig.ios = signature(); } catch (e) { /* キャンセル */ }
+});
+$('gShare').addEventListener('click', async () => {
+  try { const f = icsFile(true); await navigator.share({ files: [f], title: '下校時刻' }); googleSaved(f); } catch (e) { /* キャンセル */ }
+});
+applyWays();
 
 $('alarm').value = String(store.get('geko.alarm', 0));
-$('alarm').addEventListener('change', () => store.set('geko.alarm', Number($('alarm').value)));
+$('alarm').addEventListener('change', () => { store.set('geko.alarm', Number($('alarm').value)); renderOutput(); });
 
 $('selectAllOk').addEventListener('click', () => {
-  current.forEach((x) => { if (x.c.eligible) selected.add(x.key); }); renderDocs();
+  current.forEach((x) => { if (x.c.eligible && x.selectable) selected.add(x.key); });
+  renderDocs();
+  $('card4').scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
 $('clearSel').addEventListener('click', () => { selected.clear(); renderDocs(); });
 
@@ -554,10 +792,11 @@ $('pasteBtn').addEventListener('click', () => {
   const text = $('pasteText').value.trim();
   if (!text) return;
   addDoc({ kind: 'paste', label: '貼り付け', text, fy: pasteFy, month: pasteMonth, detected: {} });
-  $('resultCard').scrollIntoView({ behavior: 'smooth' });
+  $('card3').scrollIntoView({ behavior: 'smooth' });
 });
 
 renderGrades();
+renderDocs();
 </script>
 </body>
 </html>
