@@ -73,6 +73,10 @@
   .badge.ok { background: var(--ok-bg); color: var(--ok); }
   .badge.warn { background: var(--warn-bg); color: var(--warn); }
   .nobox { width: 22px; flex: none; }
+  #outWays { display: flex; flex-direction: column; gap: 18px; }
+  #outWays.android #androidBox { order: -1; }
+  ol.steps { padding-left: 1.4em; margin: 8px 0; }
+  ol.steps li { margin: 0 0 10px; }
   .glinks a { display: block; padding: 8px 0; border-bottom: 1px solid var(--line); color: var(--accent); }
   details > summary { cursor: pointer; color: var(--accent); }
   .sticky { position: sticky; bottom: 0; background: var(--card); border-top: 1px solid var(--line); padding: 10px 0 0; }
@@ -140,15 +144,34 @@
         </select>
       </label>
     </div>
-    <h3>iPhone・パソコン</h3>
-    <div class="row">
-      <button class="primary" id="icsBtn">カレンダーファイル（.ics）を保存</button>
-      <button id="shareBtn" hidden>共有メニューで開く</button>
+    <div id="outWays">
+      <div id="iosBox">
+        <h3>iPhone・パソコン</h3>
+        <div class="row">
+          <button class="primary" id="icsBtn">カレンダーファイル（.ics）を保存</button>
+          <button id="shareBtn" hidden>共有メニューで開く</button>
+        </div>
+        <p class="muted">iPhoneでは保存後に表示される「すべてを追加」でカレンダーに入ります。</p>
+      </div>
+      <div id="androidBox">
+        <h3>Android（Pixelなど・Googleカレンダー）</h3>
+        <p class="muted">選んだ予定を<strong>まとめて</strong>Googleカレンダーに入れます（スマホのGoogleカレンダーアプリには取り込み機能がないため、Chromeで取り込み画面を開きます）。</p>
+        <ol class="steps">
+          <li><button class="primary" id="icsBtn2">予定ファイル（.ics）を保存</button>
+            <div class="muted" id="icsSaved"></div></li>
+          <li><a class="btn" id="gImport" href="https://calendar.google.com/calendar/r/settings/export" target="_blank" rel="noopener">Googleカレンダーの取り込み画面を開く</a></li>
+          <li>画面が小さく崩れているときは、Chrome右上の「︙」→「<strong>PC版サイト</strong>」にチェック</li>
+          <li>「<strong>パソコンからファイルを選択</strong>」→「ダウンロード」にある手順1のファイルを選ぶ</li>
+          <li>追加先のカレンダーを確かめて「<strong>インポート</strong>」</li>
+        </ol>
+        <p class="muted">同じファイルを2回取り込むと予定が二重になることがあります。1か月分につき1回だけ取り込んでください。</p>
+        <details>
+          <summary>1件ずつ追加する</summary>
+          <p class="muted">リンクを開いて「保存」を押します。このときだけ予定の題名と日時がGoogleに送られます。</p>
+          <div class="glinks" id="glinks"></div>
+        </details>
+      </div>
     </div>
-    <p class="muted">iPhoneでは保存後に表示される「すべてを追加」でカレンダーに入ります。</p>
-    <h3 style="margin-top:14px">Android（Googleカレンダー）</h3>
-    <p class="muted">1件ずつ開いて「保存」を押してください。このときだけ予定の題名と日時がGoogleに送られます。</p>
-    <div class="glinks" id="glinks"></div>
   </section>
 
   <p class="muted">このアプリは無料です。読み取り結果は必ずPDFと見比べてください。</p>
@@ -469,6 +492,7 @@ function renderOutput() {
     ? list.length + '件を選んでいます' + (warnSel ? '（うち要確認 ' + warnSel + '件）' : '')
     : 'まだ予定を選んでいません。上の一覧でチェックを付けてください。';
   $('icsBtn').disabled = !list.length;
+  $('icsBtn2').disabled = !list.length;
   $('shareBtn').disabled = !list.length;
   const g = $('glinks'); g.textContent = '';
   list.forEach((c) => g.append(el('a', { href: C.googleCalendarUrl(c), target: '_blank', rel: 'noopener' },
@@ -483,13 +507,27 @@ function icsFile() {
   return new File([text], 'geko_' + first + '.ics', { type: 'text/calendar' });
 }
 
-$('icsBtn').addEventListener('click', () => {
+function saveIcs() {
   const f = icsFile();
   const url = URL.createObjectURL(f);
   const a = el('a', { href: url, download: f.name });
   document.body.append(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 60000);
+  return f;
+}
+$('icsBtn').addEventListener('click', saveIcs);
+$('icsBtn2').addEventListener('click', () => {
+  const f = saveIcs();
+  $('icsSaved').textContent = '「' + f.name + '」を保存しました（' + selectedCands().length + '件）。次へ進んでください。';
 });
+
+// Android：取り込み画面がGoogleカレンダーアプリ（取り込み機能なし）で開かないよう、Chromeで開く
+const isAndroid = /Android/i.test(navigator.userAgent);
+if (isAndroid) {
+  $('outWays').classList.add('android');
+  $('gImport').href = 'intent://calendar.google.com/calendar/r/settings/export#Intent;scheme=https;package=com.android.chrome;'
+    + 'S.browser_fallback_url=' + encodeURIComponent('https://calendar.google.com/calendar/r/settings/export') + ';end';
+}
 
 // iPhoneのホーム画面から開いたときなど、保存がうまく動かない場合の予備
 if (navigator.canShare && navigator.canShare({ files: [new File(['x'], 'a.ics', { type: 'text/calendar' })] })) {
