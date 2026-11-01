@@ -8,21 +8,25 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<meta name="theme-color" content="#2f6fb0">
+<meta name="theme-color" content="#fbf6ec" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1b1915" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="下校時刻">
 <style>
+  /* 配色：アイコン（ランドセル）に合わせた「通学路」。紺＝押すところ、黄色＝目印、クリーム＝背景 */
   :root {
-    --bg: #f6f7f9; --card: #ffffff; --text: #1d2330; --muted: #5d6675; --line: #dfe3ea;
-    --accent: #2f6fb0; --accent-text: #ffffff; --accent-soft: #e8f0fa; --ok: #1f7a45; --ok-bg: #e5f4ea;
-    --warn: #8a5300; --warn-bg: #fff1d6; --err: #a3262a; --err-bg: #fde8e8;
+    --bg: #fbf6ec; --card: #ffffff; --text: #2a2622; --muted: #5f574d; --line: #ebe1cf;
+    --accent: #24476b; --accent-text: #ffffff; --accent-dark: #162e47; --accent-soft: #eef4fa;
+    --mark: #f2c94c; --mark-soft: #fff4cc; --mark-text: #6b4a00;
+    --ok: #2f8a57; --ok-bg: #e6f3ea; --warn: #8a5300; --warn-bg: #fff1d6; --err: #a3262a; --err-bg: #fde8e8;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #14171c; --card: #1e232b; --text: #e8ebf0; --muted: #a3acba; --line: #333a45;
-      --accent: #6aa5e6; --accent-text: #0e1116; --accent-soft: #1d2b3d; --ok: #7ed3a0; --ok-bg: #1b3326;
-      --warn: #f3c170; --warn-bg: #3a2c12; --err: #f39a9a; --err-bg: #3d1c1d;
+      --bg: #1b1915; --card: #26231e; --text: #f1ece4; --muted: #c2b9ac; --line: #3d372e;
+      --accent: #9cc1ea; --accent-text: #13263a; --accent-dark: #6f93bb; --accent-soft: #1f2b38;
+      --mark: #f2c94c; --mark-soft: #3d3313; --mark-text: #ffe28a;
+      --ok: #7ed3a0; --ok-bg: #1b3326; --warn: #f3c170; --warn-bg: #3a2c12; --err: #f39a9a; --err-bg: #3d1c1d;
     }
   }
   * { box-sizing: border-box; }
@@ -30,79 +34,115 @@
   body {
     margin: 0; background: var(--bg); color: var(--text);
     font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", Meiryo, sans-serif;
-    font-size: 16px; line-height: 1.6; -webkit-text-size-adjust: 100%;
+    font-size: 16px; line-height: 1.65; -webkit-text-size-adjust: 100%;
   }
-  main { max-width: 720px; margin: 0 auto; padding: 16px 16px calc(40px + env(safe-area-inset-bottom)); }
-  h1 { font-size: 1.35rem; margin: 8px 0 4px; }
-  h2 { font-size: 1.1rem; margin: 0 0 8px; display: flex; align-items: center; gap: 8px; }
+  main { max-width: 640px; margin: 0 auto; padding: calc(12px + env(safe-area-inset-top)) 14px calc(40px + env(safe-area-inset-bottom)); }
+  h2 { font-size: 1.1rem; margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
   h3 { font-size: 1rem; margin: 0 0 6px; }
   p { margin: 6px 0; }
-  .lead { color: var(--muted); font-size: .92rem; margin: 0 0 12px; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin: 0 0 14px; }
+  input[type=checkbox], input[type=radio] { accent-color: var(--accent); }
+
+  /* ヘッダー */
+  .hd { display: flex; gap: 12px; align-items: center; background: var(--card); border-left: 8px solid var(--mark);
+        border-radius: 20px; padding: 14px 16px; box-shadow: 0 2px 0 var(--line); }
+  .hd img { width: 54px; height: 54px; border-radius: 14px; flex: none; }
+  .hd h1 { font-size: 1.3rem; margin: 0; line-height: 1.3; }
+  .hd p { margin: 2px 0 0; font-size: .9rem; color: var(--muted); }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 2px 0; }
+  .tags span { font-size: .8rem; font-weight: 700; background: var(--mark-soft); color: var(--mark-text); border-radius: 99px; padding: 2px 11px; }
+
+  /* 進み具合 */
+  .flow { display: flex; margin: 16px 0 10px; }
+  .flow span { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; position: relative; font-size: .78rem; color: var(--muted); }
+  .flow span + span::before { content: ""; position: absolute; top: 15px; right: 50%; width: 100%; height: 3px; background: var(--line); }
+  .flow span.done + span::before { background: var(--ok); }
+  .flow i { font-style: normal; position: relative; z-index: 1; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center;
+            font-weight: 700; font-size: .85rem; background: var(--card); border: 2px solid var(--line); color: var(--muted); }
+  .flow span.on { color: var(--text); font-weight: 700; }
+  .flow span.on i { background: var(--accent); border-color: var(--accent); color: var(--accent-text); box-shadow: 0 0 0 4px var(--mark); }
+  .flow span.done i { background: var(--ok); border-color: var(--ok); color: transparent; }
+  .flow span.done i::after { content: "✓"; color: #fff; position: absolute; }
+
+  /* カード */
+  .card { background: var(--card); border: 2px solid transparent; border-radius: 20px; padding: 16px; margin: 0 0 14px; box-shadow: 0 2px 0 var(--line); }
   .card.locked { opacity: .55; }
-  .card.current { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
-  .step { display: inline-flex; align-items: center; justify-content: center; width: 1.7em; height: 1.7em; flex: none;
+  .card.current { border-color: var(--accent); }
+  .step { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; flex: none; position: relative;
           border-radius: 50%; background: var(--accent); color: var(--accent-text); font-size: .85rem; }
-  .step.done { background: var(--ok); }
-  .flow { display: flex; gap: 6px; margin: 0 0 14px; font-size: .85rem; }
-  .flow span { flex: 1; text-align: center; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 6px 2px; }
-  .flow span.on { border-color: var(--accent); color: var(--accent); font-weight: 600; }
-  .flow span.done { color: var(--ok); }
+  .step.done { background: var(--ok); color: transparent; }
+  .step.done::after { content: "✓"; color: #fff; position: absolute; }
+
+  /* 学年 */
   .grades { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-  .grades label { display: flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--line);
-                  border-radius: 10px; padding: 12px 4px; cursor: pointer; user-select: none; font-size: 1.05rem; }
-  .grades input { width: 22px; height: 22px; }
-  .grades label.on { border-color: var(--accent); background: var(--accent-soft); font-weight: 600; }
-  button, .btn { font: inherit; border: 1px solid var(--accent); background: var(--card); color: var(--accent);
-                 border-radius: 10px; padding: 10px 14px; cursor: pointer; text-decoration: none; display: inline-block; text-align: center; }
-  button.primary, .btn.primary { background: var(--accent); color: var(--accent-text); }
-  .big { display: block; width: 100%; padding: 14px; font-size: 1.05rem; font-weight: 600; }
-  button:disabled, .btn.disabled { opacity: .45; cursor: default; pointer-events: none; }
+  .grades label { position: relative; display: flex; align-items: center; justify-content: center; gap: 4px; border: 2px solid var(--line); background: var(--card);
+                  border-radius: 14px; padding: 12px 4px; cursor: pointer; user-select: none; font-size: 1.1rem; font-weight: 700; }
+  .grades input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .grades label:focus-within { outline: 3px solid var(--mark); outline-offset: 2px; }
+  .grades label.on { border-color: var(--accent); background: var(--mark-soft); color: var(--accent); }
+  .grades label.on::before { content: "✓"; }
+
+  /* ボタン */
+  button, .btn { font: inherit; border: 2px solid var(--accent); background: var(--card); color: var(--accent); font-weight: 600;
+                 border-radius: 99px; padding: 9px 16px; cursor: pointer; text-decoration: none; display: inline-block; text-align: center; }
+  button.primary, .btn.primary { background: var(--accent); color: var(--accent-text); box-shadow: 0 3px 0 var(--accent-dark); }
+  button.primary:active, .btn.primary:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--accent-dark); }
+  .big { display: block; width: 100%; padding: 14px; font-size: 1.08rem; font-weight: 700; }
+  button:disabled, .btn.disabled { opacity: .4; cursor: default; pointer-events: none; box-shadow: none; }
   .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-  .muted { color: var(--muted); font-size: .88rem; }
-  progress { width: 100%; height: 14px; }
+  .muted { color: var(--muted); font-size: .92rem; }
+  progress { width: 100%; height: 14px; accent-color: var(--accent); }
   .log { font-size: .8rem; color: var(--muted); max-height: 6em; overflow: auto; white-space: pre-wrap; margin-top: 6px; }
-  select, textarea { font: inherit; color: var(--text); background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
+  select, textarea { font: inherit; color: var(--text); background: var(--card); border: 2px solid var(--line); border-radius: 10px; padding: 6px 8px; }
   textarea { width: 100%; min-height: 8em; }
-  .note { border-radius: 8px; padding: 10px 12px; margin: 8px 0; font-size: .92rem; }
+
+  /* お知らせ・手順の箱 */
+  .note { border-radius: 12px; padding: 10px 12px; margin: 10px 0; font-size: .95rem; }
   .note.warn { background: var(--warn-bg); color: var(--warn); }
   .note.err { background: var(--err-bg); color: var(--err); }
   .note.ok { background: var(--ok-bg); color: var(--ok); }
   .note.info { background: var(--accent-soft); color: var(--text); }
-  .summary { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0 10px; }
-  .summary div { border-radius: 10px; padding: 8px; text-align: center; }
-  .summary b { display: block; font-size: 1.4rem; }
+  .help { background: var(--mark-soft); border-radius: 12px; padding: 4px 12px; margin-top: 12px; }
+  .help > summary { color: var(--mark-text); font-weight: 700; }
+  .help ol { margin: 4px 0 8px; padding-left: 1.4em; }
+  .help li { margin: 2px 0; }
+  .summary { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0 12px; }
+  .summary div { border-radius: 12px; padding: 8px; text-align: center; }
+  .summary b { display: block; font-size: 1.5rem; }
   .day { border-top: 1px solid var(--line); padding: 10px 0 6px; }
   .day:first-of-type { border-top: 0; }
-  .day-head { font-weight: 600; }
-  .ev { font-size: .8rem; color: var(--muted); white-space: pre-wrap; word-break: break-all; margin: 2px 0 4px; }
+  .day-head { font-weight: 700; }
+  .ev { font-size: .82rem; color: var(--muted); white-space: pre-wrap; word-break: break-all; margin: 2px 0 4px; }
   .cand { display: flex; align-items: flex-start; gap: 10px; padding: 6px 0; }
   .cand input { width: 24px; height: 24px; margin-top: 1px; flex: none; }
-  .cand .title { font-weight: 600; }
+  .cand .title { font-weight: 700; }
   .badge { display: inline-block; border-radius: 6px; padding: 0 6px; font-size: .78rem; margin-left: 4px; }
   .badge.ok { background: var(--ok-bg); color: var(--ok); }
   .badge.warn { background: var(--warn-bg); color: var(--warn); }
-  .hint { display: block; font-size: .8rem; color: var(--warn); }
+  .hint { display: block; font-size: .85rem; color: var(--warn); }
   .nobox { width: 24px; flex: none; }
   .glinks a { display: block; padding: 8px 0; border-bottom: 1px solid var(--line); color: var(--accent); }
   details { margin-top: 10px; }
-  details > summary { cursor: pointer; color: var(--accent); padding: 4px 0; }
+  details > summary { cursor: pointer; color: var(--accent); padding: 6px 0; font-weight: 600; }
+
+  /* 手順4：入れ先と番号つきの手順 */
+  .devname { display: inline-block; font-size: .8rem; font-weight: 700; background: var(--mark-soft); color: var(--mark-text); border-radius: 99px; padding: 1px 11px; margin: 4px 0 6px; }
   .guide { list-style: none; padding: 0; margin: 10px 0; counter-reset: g; }
   .guide > li { position: relative; padding: 0 0 14px 40px; counter-increment: g; }
   .guide > li::before { content: counter(g); position: absolute; left: 0; top: 0; width: 28px; height: 28px; border-radius: 50%;
-                        background: var(--line); color: var(--text); text-align: center; line-height: 28px; font-size: .9rem; }
+                        background: var(--line); color: var(--text); text-align: center; line-height: 28px; font-size: .9rem; font-weight: 700; }
   .guide > li.done::before { content: "✓"; background: var(--ok); color: #fff; }
-  .guide > li.now::before { background: var(--accent); color: var(--accent-text); }
+  .guide > li.now::before { background: var(--accent); color: var(--accent-text); box-shadow: 0 0 0 3px var(--mark); }
   .guide > li.later { opacity: .5; }
-  .dest { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin: 0 0 8px; cursor: pointer; }
+  .dest { display: flex; gap: 10px; align-items: flex-start; border: 2px solid var(--line); border-radius: 14px; padding: 10px 12px; margin: 0 0 8px; cursor: pointer; }
   .dest input { width: 22px; height: 22px; margin-top: 2px; flex: none; }
   .dest b { display: block; }
-  .dest:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
-  .faq details { border-top: 1px solid var(--line); margin: 0; padding: 6px 0; }
-  .banner { display: flex; gap: 10px; align-items: center; background: var(--accent-soft); border-radius: 10px; padding: 10px 12px; margin: 0 0 14px; font-size: .9rem; }
-  .banner img { width: 36px; height: 36px; border-radius: 8px; flex: none; }
-  .banner .x { margin-left: auto; border: 0; background: none; color: var(--muted); padding: 4px 8px; font-size: 1.1rem; }
+  .dest:has(input:checked) { border-color: var(--accent); background: var(--mark-soft); }
+  .faq h2::before { content: "?"; display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--mark); color: #3a2a00; font-size: .9rem; }
+  .faq details { border-top: 1px solid var(--line); margin: 0; padding: 4px 0; }
+  .banner { display: flex; gap: 10px; align-items: center; background: var(--accent-soft); border-radius: 14px; padding: 10px 12px; margin: 12px 0 0; font-size: .92rem; }
+  .banner img { width: 36px; height: 36px; border-radius: 9px; flex: none; }
+  .banner .x { margin-left: auto; border: 0; background: none; color: var(--muted); padding: 4px 8px; font-size: 1.1rem; box-shadow: none; }
   a { color: var(--accent); }
 </style>
 <!-- 共通ロジック（外部通信なし） -->
@@ -112,8 +152,14 @@
 </head>
 <body>
 <main>
-  <h1>下校時刻カレンダー</h1>
-  <p class="lead">学校の「行事予定表」PDFから下校時刻を読み取って、スマホのカレンダーに入れます。PDFは<strong>この端末の中だけ</strong>で読み取り、どこにも送りません。無料です。</p>
+  <header class="hd">
+    <img src="icons/icon-192.png" alt="">
+    <div>
+      <h1>下校時刻カレンダー</h1>
+      <p>学校の「行事予定表」PDFを選ぶだけで、下校時刻がカレンダーに入ります</p>
+    </div>
+  </header>
+  <div class="tags"><span>無料</span><span>登録なし</span><span>PDFはどこにも送りません</span></div>
 
   <div class="banner" id="installBanner" hidden>
     <img src="icons/icon-192.png" alt="">
@@ -122,7 +168,7 @@
   </div>
 
   <div class="flow" aria-hidden="true">
-    <span id="flow1">① 学年</span><span id="flow2">② PDF</span><span id="flow3">③ 確認</span><span id="flow4">④ 登録</span>
+    <span id="flow1"><i>1</i>学年</span><span id="flow2"><i>2</i>PDF</span><span id="flow3"><i>3</i>確認</span><span id="flow4"><i>4</i>登録</span>
   </div>
 
   <!-- 1. 学年 -->
@@ -138,7 +184,10 @@
     <p class="muted" id="pdfLead">学校から届いた「行事予定表」のPDFを選んでください。</p>
     <label class="btn primary big" id="pdfLabel" for="pdfInput">PDFを選ぶ</label>
     <input class="sr" type="file" id="pdfInput" accept="application/pdf,.pdf" multiple>
-    <p class="muted" id="pdfWhere"></p>
+    <details class="help" id="pdfHow">
+      <summary>PDFが選べないとき</summary>
+      <ol id="pdfHowList"></ol>
+    </details>
     <div id="progressBox" hidden>
       <p id="progressText" style="font-weight:600">準備中…</p>
       <progress id="progressBar" max="1" value="0"></progress>
@@ -171,7 +220,8 @@
   <!-- 4. 登録 -->
   <section class="card" id="card4" hidden>
     <h2><span class="step" id="step4">4</span>カレンダーに入れる</h2>
-    <p id="selCount" style="font-weight:600"></p>
+    <span class="devname" id="devName"></span>
+    <p id="selCount" style="font-weight:700"></p>
     <div class="row" style="margin-bottom:6px">
       <label>お知らせ（通知）：
         <select id="alarm">
@@ -197,7 +247,7 @@
     <div id="wayIos" hidden>
       <ol class="guide">
         <li id="iosS1" class="now">
-          <button class="primary big" id="icsBtnIos">iPhoneのカレンダーに追加</button>
+          <button class="primary big" id="icsBtnIos">カレンダーに追加</button>
         </li>
         <li id="iosS2" class="later">
           表示された画面で「<strong>すべてを追加</strong>」を押すと完了です。
@@ -206,6 +256,10 @@
       </ol>
       <div class="note info">予定は<strong>iPhoneのカレンダー</strong>に入ります。家族と共有しているGoogleカレンダーには入りません。
         <button class="toGoogle" style="margin-top:6px">Googleカレンダーにも入れる</button></div>
+      <details class="help">
+        <summary>ライフベアなど、別のカレンダーアプリで見たいとき</summary>
+        <p>iPhoneのカレンダーと連携するアプリなら、そのまま表示されます。アプリの設定で、iPhoneのカレンダーとの同期をオンにしてください（ライフベアの場合は「カレンダー連携・六曜」→「iOSカレンダー同期」）。</p>
+      </details>
     </div>
 
     <!-- パソコンのカレンダー -->
@@ -343,9 +397,13 @@ function updateFlow() {
   $('card4').hidden = !hasDocs;
 }
 
-$('pdfWhere').textContent = isIOS
-  ? 'メールやLINEで届いたPDFは、先に「ファイル」アプリに保存しておくと選べます。'
-  : isAndroid ? 'ダウンロードしたPDFは「ダウンロード」フォルダにあります。' : '';
+// PDFが選べないときの手順（端末ごと）
+(isIOS
+  ? ['メールやLINEで届いたPDFを開く', '共有ボタン（□に↑）→「"ファイル"に保存」を押す', 'このページに戻り、「PDFを選ぶ」→ 保存した場所からPDFを選ぶ']
+  : isAndroid
+    ? ['メールやLINEで届いたPDFを開き、「ダウンロード」または「保存」を押す', 'このページに戻り、「PDFを選ぶ」を押す', '「ダウンロード」の中から、そのPDFを選ぶ']
+    : ['メールに付いているPDFを、パソコンに保存する', '「PDFを選ぶ」を押し、保存したPDFを選ぶ']
+).forEach((t) => $('pdfHowList').append(el('li', {}, t)));
 
 // ---------- ホーム画面への追加の案内 ----------
 let installEvent = null;
@@ -671,7 +729,7 @@ function renderOutput() {
     ? n + '件の予定を入れます' + (warnSel ? '（うち要確認 ' + warnSel + '件）' : '')
     : '上の「3」で、入れる予定にチェックを付けてください。';
   ['icsBtnIos', 'icsBtnGoogle', 'icsBtnPc', 'icsBtnAny', 'shareBtn', 'gShare'].forEach((id) => { $(id).disabled = !n; });
-  $('icsBtnIos').textContent = 'iPhoneのカレンダーに追加' + (n ? '（' + n + '件）' : '');
+  $('icsBtnIos').textContent = 'カレンダーに追加' + (n ? '（' + n + '件）' : '');
   $('icsBtnGoogle').textContent = '予定のファイルを保存' + (n ? '（' + n + '件）' : '');
   // 選び直したら、保存からやり直してもらう
   const sig = signature();
@@ -707,6 +765,7 @@ function saveIcs(asFile) {
 // ---------- 入れ先（端末のカレンダー / Googleカレンダー） ----------
 // Androidの標準カレンダーはGoogleカレンダーなので選択なし。iPhone・パソコンは最初に選んでもらう（次回も残す）
 let dest = isAndroid ? 'google' : store.get('geko.dest', null);
+$('devName').textContent = 'お使いの端末：' + (isIOS ? 'iPhone' : isAndroid ? 'Android' : 'パソコン');
 $('destDeviceName').textContent = isIOS ? 'iPhoneのカレンダー' : 'パソコンのカレンダー';
 $('destDeviceDesc').textContent = isIOS ? 'いつも使っている「カレンダー」アプリ' : 'Outlook・Macのカレンダーなど';
 document.querySelectorAll('input[name=dest]').forEach((r) => {
