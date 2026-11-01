@@ -272,7 +272,31 @@
         <button class="toGoogle" style="margin-top:6px">Googleカレンダーにも入れる</button></div>
     </div>
 
-    <!-- Googleカレンダー（全端末共通） -->
+    <!-- Android：保存した .ics をGoogleカレンダーのアプリで開くと、まとめて追加できる（2025年10月以降のアプリ） -->
+    <div id="wayAndroid" hidden>
+      <ol class="guide">
+        <li id="aS1" class="now">
+          <button class="primary big" id="icsBtnAndroid">予定のファイルを保存</button>
+        </li>
+        <li id="aS2" class="later">
+          画面の下に出る「<strong>開く</strong>」を押します。
+          <span class="muted" style="display:block">「開く」が消えてしまったときは、「Files」アプリ →「ダウンロード」→「<strong id="aFile">geko_….ics</strong>」を押してください。</span>
+        </li>
+        <li id="aS3" class="later">
+          Googleカレンダーで「予定を追加しますか？」と出たら「<strong>追加</strong>」を押すと完了です。
+          <span class="muted" style="display:block">アプリを選ぶ画面が出たら「カレンダー」（Googleカレンダー）を選んでください。</span>
+        </li>
+      </ol>
+      <details class="help">
+        <summary>「追加」の画面が出ないとき</summary>
+        <ol>
+          <li>Playストアで「Googleカレンダー」を最新にしてから、もう一度ファイルを開いてください。</li>
+          <li>それでもだめなときは、ウェブ版のGoogleカレンダーから取り込めます。<button id="toAndroidWeb" style="margin-top:6px">ウェブ版で取り込む手順を見る</button></li>
+        </ol>
+      </details>
+    </div>
+
+    <!-- Googleカレンダー（ウェブ版の取り込み画面を使う。iPhone・パソコン、Androidの予備） -->
     <div id="wayGoogle" hidden>
       <p class="muted">Googleカレンダーに、選んだ予定をまとめて入れます。下の順に進めてください。</p>
       <ol class="guide">
@@ -367,7 +391,7 @@ const docs = [];                  // 読み取った表（PDFのページ、ま�
 const selected = new Set();       // 選んだ候補のキー
 let current = [];                 // 画面に出ている候補 [{key, c}]
 let busy = false;
-const savedSig = { ios: null, google: null };  // 保存したときの選択内容（選択が変わったら保存し直してもらう）
+const savedSig = { ios: null, google: null, android: null };  // 保存したときの選択内容（選択が変わったら保存し直してもらう）
 
 // ---------- 画面全体の進み具合 ----------
 function updateFlow() {
@@ -728,12 +752,14 @@ function renderOutput() {
   $('selCount').textContent = n
     ? n + '件の予定を入れます' + (warnSel ? '（うち要確認 ' + warnSel + '件）' : '')
     : '上の「3」で、入れる予定にチェックを付けてください。';
-  ['icsBtnIos', 'icsBtnGoogle', 'icsBtnPc', 'icsBtnAny', 'shareBtn', 'gShare'].forEach((id) => { $(id).disabled = !n; });
+  ['icsBtnIos', 'icsBtnAndroid', 'icsBtnGoogle', 'icsBtnPc', 'icsBtnAny', 'shareBtn', 'gShare'].forEach((id) => { $(id).disabled = !n; });
   $('icsBtnIos').textContent = 'カレンダーに追加' + (n ? '（' + n + '件）' : '');
+  $('icsBtnAndroid').textContent = '予定のファイルを保存' + (n ? '（' + n + '件）' : '');
   $('icsBtnGoogle').textContent = '予定のファイルを保存' + (n ? '（' + n + '件）' : '');
   // 選び直したら、保存からやり直してもらう
   const sig = signature();
   if (savedSig.ios !== sig) setGuide('iosS', 2, 1);
+  if (savedSig.android !== sig) setGuide('aS', 3, 1);
   if (savedSig.google !== sig) {
     setGuide('gS', 4, 1);
     $('gImport').classList.add('disabled'); $('gSaved').textContent = '';
@@ -778,17 +804,23 @@ function setDest(v, scroll) {
   applyWays();
   if (scroll) $('destBox').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
+// Android：ふだんはアプリで開く方法。うまくいかないときだけウェブ版の取り込み手順を出す
+let androidWeb = false;
 function applyWays() {
   $('destBox').hidden = isAndroid;
   $('destNeed').hidden = !!dest;
   $('wayIos').hidden = !(isIOS && dest === 'device');
   $('wayPc').hidden = !(!isIOS && !isAndroid && dest === 'device');
-  $('wayGoogle').hidden = dest !== 'google';
-  $('backToDevice').hidden = isAndroid;
-  $('toDevice').textContent = (isIOS ? 'iPhone' : 'パソコン') + 'のカレンダーにも入れる';
+  $('wayAndroid').hidden = !isAndroid || androidWeb;
+  $('wayGoogle').hidden = dest !== 'google' || (isAndroid && !androidWeb);
+  $('backToDevice').hidden = false;
+  $('toDevice').textContent = isAndroid ? 'かんたんな方法（アプリで開く）に戻る' : (isIOS ? 'iPhone' : 'パソコン') + 'のカレンダーにも入れる';
 }
 document.querySelectorAll('.toGoogle').forEach((b) => b.addEventListener('click', () => setDest('google', true)));
-$('toDevice').addEventListener('click', () => setDest('device', true));
+$('toDevice').addEventListener('click', () => {
+  if (isAndroid) { androidWeb = false; applyWays(); $('card4').scrollIntoView({ behavior: 'smooth', block: 'start' }); } else setDest('device', true);
+});
+$('toAndroidWeb').addEventListener('click', () => { androidWeb = true; applyWays(); $('wayGoogle').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
 
 // ブラウザごとの案内文
 $('gOpenText').textContent = isAndroid ? 'Chromeで「インポート」の画面が開きます。'
@@ -801,6 +833,11 @@ $('gHow').textContent = isAndroid
     : 'Googleへのログインを求められたら、いつものアカウントでログインしてください。左の「インポート」を選ぶと表示されます。';
 
 $('icsBtnIos').addEventListener('click', () => { saveIcs(false); savedSig.ios = signature(); setGuide('iosS', 2, 2); });
+$('icsBtnAndroid').addEventListener('click', () => {
+  const f = saveIcs(false);
+  $('aFile').textContent = f.name;
+  savedSig.android = signature(); setGuide('aS', 3, 2);
+});
 $('icsBtnPc').addEventListener('click', () => saveIcs(false));
 $('icsBtnAny').addEventListener('click', () => saveIcs(false));
 function googleSaved(f) {
