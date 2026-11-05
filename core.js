@@ -538,6 +538,40 @@
     };
   }
 
+  // 表の行数と土日の網掛けが、その月の暦と合っているか（0〜1。合わなければ -1、網掛けがなければ null）
+  function monthFitScore(rows, fiscalYear, month) {
+    const year = calendarYear(fiscalYear, month);
+    if (rows.length !== daysInMonth(year, month)) return -1;
+    if (!rows.some((r) => r.shaded)) return null;
+    let weekendRows = 0; let shadedWeekend = 0; let shadedWeekday = 0; let weekdayRows = 0;
+    rows.forEach((r) => {
+      const wd = weekdayOf(year, month, r.index + 1);
+      if (wd === 0 || wd === 6) { weekendRows += 1; if (r.shaded) shadedWeekend += 1; } else { weekdayRows += 1; if (r.shaded) shadedWeekday += 1; }
+    });
+    // 祝日も網掛けになるので、平日の網掛けは少しだけ減点する
+    return shadedWeekend / Math.max(1, weekendRows) - 0.5 * shadedWeekday / Math.max(1, weekdayRows);
+  }
+
+  // 見出しの月を、表の行数と土日の網掛けで確かめる。
+  // 「11月」の細い「11」が「1月」と読まれるなどのOCRの誤りを、暦と合う月がひとつに絞れるときだけ直す
+  function resolveMonth(table, fiscalYear, month) {
+    if (!table || !table.rows || !fiscalYear) return { month, corrected: false };
+    const rows = table.rows;
+    const fit = (m) => monthFitScore(rows, fiscalYear, m);
+    if (month) {
+      const s = fit(month);
+      if (s === null || s >= 0.8) return { month, corrected: false };
+    }
+    const all = [];
+    for (let m = 1; m <= 12; m += 1) { const s = fit(m); if (s !== null && s >= 0.8) all.push({ m, s }); }
+    if (all.length === 0) return { month, corrected: false };
+    all.sort((a, b) => b.s - a.s);
+    // 最も合う月が、ほかの月より明らかに合っているときだけ採用する
+    if (all.length > 1 && all[0].s - all[1].s < 0.15) return { month, corrected: false };
+    const best = all[0].m;
+    return { month: best, corrected: best !== month };
+  }
+
   // 表の行を日付に対応付け、学年ごとの候補を作る
   function buildFromTable(table, opts) {
     const fiscalYear = opts.fiscalYear;
@@ -727,7 +761,7 @@
 
   const api = {
     normalizeText, parseDismissalText, parseMulti, parseGradeSpec, parseHeader, calendarYear, daysInMonth,
-    weekdayOf, isoDate, detectGrid, toGray, estimateSkew, rotateGray, readTablePage, mergeTables, buildFromTable, splitPastedText,
+    weekdayOf, isoDate, detectGrid, toGray, estimateSkew, rotateGray, readTablePage, mergeTables, resolveMonth, buildFromTable, splitPastedText,
     makeCandidates, buildIcs, googleCalendarUrl, eventTitle, gradeLabel, WEEKDAYS
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

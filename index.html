@@ -146,7 +146,7 @@
   a { color: var(--accent); }
 </style>
 <!-- 共通ロジック（外部通信なし） -->
-<script src="core.js"></script>
+<script src="core.js?v=2026.11.05"></script>
 <!-- 文字認識（端末内で実行。初回だけ認識データをダウンロード） -->
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/tesseract.min.js" defer></script>
 </head>
@@ -350,6 +350,7 @@
     <details><summary>個人情報や費用は？</summary>
       <p class="muted">PDFはこの端末の中で読み取り、どこにも送りません。料金はかかりません（初回のデータ取得で通信量だけ使います）。</p></details>
   </section>
+  <p class="muted" style="text-align:center;font-size:12px">バージョン 2026.11.05（iPhoneでの読み取りに対応）</p>
 </main>
 
 <script type="module">
@@ -485,6 +486,34 @@ const progress = {
 };
 
 // ---------- ライブラリの読み込み ----------
+// iPhone・iPad（Safari）は ReadableStream を for await で回せない。
+// pdf.js 5 の getTextContent はこれを使うため、無いときだけ補う（Pixel などの Chrome は元から対応）
+function polyfillReadableStreamIterator() {
+  if (typeof ReadableStream === 'undefined') return;
+  const proto = ReadableStream.prototype;
+  if (typeof proto[Symbol.asyncIterator] === 'function') return;
+  const values = function ({ preventCancel = false } = {}) {
+    const reader = this.getReader();
+    return {
+      async next() {
+        try {
+          const r = await reader.read();
+          if (r.done) reader.releaseLock();
+          return r;
+        } catch (e) { reader.releaseLock(); throw e; }
+      },
+      async return(value) {
+        if (!preventCancel) { const p = reader.cancel(value); reader.releaseLock(); await p; } else reader.releaseLock();
+        return { done: true, value };
+      },
+      [Symbol.asyncIterator]() { return this; }
+    };
+  };
+  if (typeof proto.values !== 'function') Object.defineProperty(proto, 'values', { value: values, configurable: true, writable: true });
+  Object.defineProperty(proto, Symbol.asyncIterator, { value: proto.values, configurable: true, writable: true });
+}
+polyfillReadableStreamIterator();
+
 let pdfjsLib = null;
 async function loadPdfjs() {
   if (pdfjsLib) return pdfjsLib;
@@ -567,7 +596,14 @@ async function bornDigitalTextItems(page, vp) {
 async function readPdfPage(page, label) {
   // 文字データのあるPDFはOCRなしで読む
   const r2 = await renderPage(page, 2);
-  const textItems = await bornDigitalTextItems(page, r2.vp);
+  let textItems = null;
+  try {
+    textItems = await bornDigitalTextItems(page, r2.vp);
+  } catch (e) {
+    // 文字データを取り出せない端末でも、画像からの読み取りで続ける
+    console.warn(e);
+    progress.log(label + ': 文字データを取り出せなかったため、画像から読み取ります');
+  }
   if (textItems) {
     const t = await C.readTablePage(r2.img, ocr, (s) => progress.log(label + ': ' + s), { textItems });
     if (t) return { table: t, source: 'text' };
@@ -622,9 +658,13 @@ async function handleFiles(files) {
         }
         const table = read.table;
         const detected = table.header;
+        const fy = detected.fiscalYear || fiscalYearNow();
+        // 見出しの月を表の行数・土日の位置と照合（「11月」が「1月」と読まれた場合などを直す）
+        const rm = C.resolveMonth(table, fy, detected.month || null);
+        if (rm.corrected) progress.log(label + ': 見出しの月を、表の日数と土日の位置から ' + rm.month + '月 と判断しました');
         addDoc({
-          kind: 'pdf', label, url, table, detected, source: read.source,
-          fy: detected.fiscalYear || fiscalYearNow(), month: detected.month || null,
+          kind: 'pdf', label, url, table, detected, source: read.source, monthCorrected: rm.corrected,
+          fy, month: rm.month || null,
           seconds: (performance.now() - t0) / 1000
         });
       }
@@ -655,6 +695,7 @@ function computeDoc(d) {
   }
   const built = C.buildFromTable(d.table, { fiscalYear: d.fy, month: d.month });
   const warnings = built.warnings.slice();
+  if (d.monthCorrected) warnings.unshift('見出しの月がはっきり読めなかったため、表の日数と土日の位置から' + d.month + '月と判断しました。月が正しいか確認してください。');
   if (!d.detected.fiscalYear || !d.detected.month) warnings.unshift('PDFの見出しから年度・月を読み取れませんでした。正しい年度と月を選んでください。');
   return { cands: grades.length ? C.makeCandidates(built.perDay, grades, built.year, built.month, 'pdf') : [], warnings };
 }
@@ -677,7 +718,7 @@ function renderDocs() {
     if (d.kind === 'error') { card.append(el('div', { class: 'note err' }, d.message)); box.append(card); return; }
 
     const meta = el('div', { class: 'row muted' });
-    meta.append(ymSelectors(d.fy, d.month, (fy, m) => { d.fy = fy; d.month = m; renderDocs(); }));
+    meta.append(ymSelectors(d.fy, d.month, (fy, m) => { d.fy = fy; d.month = m; d.monthCorrected = false; renderDocs(); }));
     if (d.kind === 'pdf') meta.append(el('a', { href: d.url, target: '_blank', rel: 'noopener' }, 'PDFを開いて見比べる'));
     card.append(meta);
 
